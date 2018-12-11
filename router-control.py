@@ -1,13 +1,10 @@
-import subprocess
-import socket
-
 #loss = [1, 0.1, 0.01, 0.001]
 #delay = [5, 10, 20, 50, 100, 200]
 #bw = [10, 100, 200, 500, 1000]
 
 loss = [0.001]
-delay = [5, 10]
-bw = [900]
+delay = [5]
+bw = [100, 900]
 
 for i in loss:
 	for j in delay:
@@ -32,18 +29,33 @@ for i in loss:
 			s1.sendall("Start!".encode())
 			s1.close()
 
+			time.sleep(1)
+
 			# Send instructions to S2
 			s2 = socket.socket()
 			s2.connect(('192.168.3.2', 6001))
 			s2.sendall(qdiscConfig)
 			s2.sendall(classConfig)
 			s2.sendall("Start!".encode())
-			
-			print(qdiscConfig.decode())
-			print(classConfig.decode())
-			
+
+			#print(qdiscConfig.decode())
+			#print(classConfig.decode())
+			print("Loss: " + str(i) + "%; Delay: " + str(j) + "ms; BW: " + str(k) + "mbps")
+
 			msg = s2.recv(1024).decode()
 			print(msg)
 			s2.close()
 
+# Terminate s1 and s2 Listener
+s1 = socket.socket()
+s1.connect(('192.168.2.2', 6001))
+s1.sendall("Terminate!".encode())
+s1.close()
+
+s2 = socket.socket()
+s2.connect(('192.168.3.2', 6001))
+s2.sendall("Terminate!".encode())
+s2.close()
+
 subprocess.run("./clean-tc", shell=True)
+print("Experiments finish!")
