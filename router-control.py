@@ -20,7 +20,7 @@ logname = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".log"
 csvname = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".csv"
 csvfile = open(csvname, 'a+')
 writer = csv.writer(csvfile)
-writer.writerow(['Congtestion Control', 'TC Loss (%)', 'TC Delay (ms)', 'TC BW (mbps)', 'Actual Loss (%)', 'Actual BW (mbps)'])
+writer.writerow(['Congestion Control', 'TC Loss (%)', 'TC Delay (ms)', 'TC BW (mbps)', 'Actual Loss (%)', 'Actual BW (mbps)'])
 csvfile.close()
 
 for c in cong:
