@@ -15,11 +15,13 @@ bw = [10, 100, 200, 500, 1000]
 # bw = [100, 900]
 
 d = datetime.datetime.now()
-filename = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".csv"
-csvfile = open(filename, 'w')
+logname = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".log"
+
+csvname = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".csv"
+csvfile = open(csvname, 'a+')
 writer = csv.writer(csvfile)
 writer.writerow(['Cong', 'Loss (%)', 'Delay (ms)', 'BW (mbps)', 'Actual Loss (%)', 'Actual BW (mbps)'])
-# data = []
+csvfile.close()
 
 for c in cong:
 	# Set congestion control
@@ -37,6 +39,8 @@ for c in cong:
 		for j in delay:
 			for k in bw:
 				try:
+					logfile = open(logname, 'a+')
+
 					print("")
 					cmd = "./set-network " + str(i) + " " + str(j) + " " + str(k)
 					subprocess.run(cmd, shell=True)
@@ -65,29 +69,43 @@ for c in cong:
 					s2.connect(('192.168.2.2', 6001))
 					s2.sendall(msg_snd)
 
-					#print(qdiscConfig.decode())
-					#print(classConfig.decode())
-					print("Cong: " + c + "; Loss: " + str(i) + "%; Delay: " + str(j) + "ms; BW: " + str(k) + "mbps")
+					print("Cong: " + c + "; Loss: " + str(i) + "%; Delay: " + str(j) + "ms; BW: " + str(k) + "mbps", file=logfile)
 
 					msg_recv = s2.recv(1024).decode()
-					print(msg_recv)
+					print(msg_recv, file=logfile)
 					s2.close()
 					
 					actualBW = float(msg_recv.split()[-3])
 					lossNum = float(msg_recv.split()[8])
-
 					transferTime = float(msg_recv.split()[-7].split('-')[1])
-					pktNum = (transferTime * actualBW) / 1448 * 1500
-					actualLoss = lossNum / pktNum
+
+					unit = msg_recv.split()[-2]
+					if unit == "Gbits/sec":
+						sndBytes = (transferTime * actualBW) / 8 * 1e9
+					elif unit == "Mbits/sec":
+						sndBytes = (transferTime * actualBW) / 8 * 1e6
+					elif unit == "Kbits/sec":
+						sndBytes = (transferTime * actualBW) / 8 * 1e3
+					elif unit == "bits/sec":
+						sndBytes = (transferTime * actualBW) / 8
+					pktNum = sndBytes / 1448
+
+					actualLoss = lossNum / pktNum * 100
 
 					record = [i, j, k, actualLoss, actualBW]
 					record = ['%.3f' % a for a in record]
 					record.insert(0, c)
-					print(record)
+
+					csvfile = open(csvname, 'a+')
+					writer = csv.writer(csvfile)
 					writer.writerow(record)
-					# data.append(record)
+					csvfile.close()
+					logfile.close()
+
 				except Exception as e:
-					print(e)
+					print(e, file=logfile)
+					csvfile.close()
+					logfile.close()
 
 # Terminate Server2 and Server3 Listener
 s2 = socket.socket()
@@ -101,7 +119,3 @@ s3.sendall("Terminate!".encode())
 s3.close()
 
 subprocess.run("./clean-tc", shell=True)
-print("Experiments finish!")
-
-# writer.writerows(data)
-csvfile.close()

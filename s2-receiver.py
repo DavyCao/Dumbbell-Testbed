@@ -4,13 +4,13 @@ import datetime
 
 d = datetime.datetime.now()
 filename = "/tmp/experiment_logs/Receiver_" + "{:%y%m%d_%H%M%S}".format(d) + ".log"
-f = open(filename, 'w')
 
 s = socket.socket()
 s.bind(('0.0.0.0', 6001))
 s.listen(1000)
 
 while True:
+    f = open(filename, 'a+')
     c, addr = s.accept()
     print("Got connection from", addr, file=f)
     cmd = c.recv(1024).decode()
@@ -37,4 +37,4 @@ while True:
         c.sendall(msg.encode())
 
     c.close()
-f.close()
+    f.close()
