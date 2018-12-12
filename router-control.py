@@ -69,7 +69,7 @@ for c in cong:
 					s2.connect(('192.168.2.2', 6001))
 					s2.sendall(msg_snd)
 
-					print("Congtestion Control: " + c + "; TC Loss: " + str(i) + "%; TC Delay: " + str(j) + "ms; TC BW: " + str(k) + "mbps", file=logfile)
+					print("Congestion Control: " + c + "; TC Loss: " + str(i) + "%; TC Delay: " + str(j) + "ms; TC BW: " + str(k) + "mbps", file=logfile)
 
 					msg_recv = s2.recv(1024).decode()
 					print(msg_recv, file=logfile)
