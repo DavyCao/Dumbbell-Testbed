@@ -1,4 +1,4 @@
 tc qdisc del dev ifb0 root
-tc filter del dev eth0.201 root
-tc qdisc del dev eth0.201 ingress
+tc filter del dev eth0.301 root
+tc qdisc del dev eth0.301 ingress
 ip link set dev ifb0 down
