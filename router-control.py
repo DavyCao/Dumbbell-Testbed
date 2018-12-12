@@ -20,7 +20,7 @@ logname = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".log"
 csvname = "/tmp/experiment_logs/Exp_" + "{:%y%m%d_%H%M%S}".format(d) + ".csv"
 csvfile = open(csvname, 'a+')
 writer = csv.writer(csvfile)
-writer.writerow(['Cong', 'Loss (%)', 'Delay (ms)', 'BW (mbps)', 'Actual Loss (%)', 'Actual BW (mbps)'])
+writer.writerow(['Congtestion Control', 'TC Loss (%)', 'TC Delay (ms)', 'TC BW (mbps)', 'Actual Loss (%)', 'Actual BW (mbps)'])
 csvfile.close()
 
 for c in cong:
@@ -69,7 +69,7 @@ for c in cong:
 					s2.connect(('192.168.2.2', 6001))
 					s2.sendall(msg_snd)
 
-					print("Cong: " + c + "; Loss: " + str(i) + "%; Delay: " + str(j) + "ms; BW: " + str(k) + "mbps", file=logfile)
+					print("Congtestion Control: " + c + "; TC Loss: " + str(i) + "%; TC Delay: " + str(j) + "ms; TC BW: " + str(k) + "mbps", file=logfile)
 
 					msg_recv = s2.recv(1024).decode()
 					print(msg_recv, file=logfile)
