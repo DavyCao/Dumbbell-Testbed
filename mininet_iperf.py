@@ -12,6 +12,9 @@ from mininet.examples.linuxrouter import LinuxRouter
 import time
 import subprocess
 import csv
+import datetime
+import multiprocessing
+
 
 # todo Check where mininet does TC; what should be the limit value
 class RTopo(Topo):
@@ -37,20 +40,21 @@ def iperfTest():
 
     # Let h1 send data to h2 -- configure tc on r-eth2 (egress to h2)
     IF = 'r-eth2'
-    t = 60
     MTU = 1500
 
     r.cmd('tc qdisc add dev ' + IF + ' root handle 1:0 netem delay ' + str(delay) + 'ms')
     r.cmd('tc qdisc add dev ' + IF + ' parent 1:1 handle 10: tbf rate ' + str(bw) + 'mbit' + \
                 ' burst ' + str(burst) + ' limit ' + str(limit))
 
+    linkDelay = delay + rtprop
+    h1.cmd('ethtool -K h1-eth tx off')
     r.cmd('ethtool -K r-eth1 lro off gro off')
     r.cmd('ethtool -K r-eth2 lro off gro off')
-    bdp = int(bw * 1e6 / 8 * delay / 1e3)
+    bdp = int(bw * 1e6 / 8 * linkDelay / 1e3)
 
     print('\n')
     print(['bdp', convertSize(bdp), 'buffer', convertSize(limit)])
-    print(['cc: ', cc, 'delay', str(delay), 'bw', bw, 'limit', limit, 'burst', burst])
+    print(['cc: ', cc, 'delay', str(linkDelay), 'bw', bw, 'limit', limit, 'burst', burst])
     print(r.cmd('tc qdisc show dev r-eth2'))
 
     iperf_server = h1.cmd('iperf3 -s -p 5001&')
@@ -59,6 +63,12 @@ def iperfTest():
     h1.cmd('pkill iperf3')
     h2.cmd('pkill iperf3')
     print(iperf_client)
+
+    # Save the experimental logs to file
+    logfile = open(logname, 'a+')
+    print(['cc: ', cc, 'delay', str(linkDelay), 'bw', bw, 'limit', limit, 'burst', burst], file=logfile)
+    print(iperf_client, file=logfile)
+    logfile.close()
 
     retr = int(iperf_client.splitlines()[-4].split()[8])
     goodput = float(iperf_client.splitlines()[-3].split()[-3])
@@ -78,10 +88,15 @@ def iperfTest():
     else:
         loss = 100
 
-    record = [cc, delay, bw, limit, burst, retr, convertSize(bdp), convertSize(limit), loss, goodput]
+    record = [cc, linkDelay, bw, limit, burst, retr, convertSize(bdp), convertSize(limit), loss, goodput]
+
+    csvfile = open(csvname, 'a+')
+    writer = csv.writer(csvfile)
     writer.writerow(record)
+    csvfile.close()
 
     net.stop()
+    print('Success!' + ' -- ' + str(record))
 
 
 def convertSize(num):
@@ -102,17 +117,31 @@ def convertSize(num):
 
 
 if __name__ == '__main__':
-    ccs = ['bbr', 'cubic']
-    delays = [20]
-    bws = [1000]
-    bursts = [1000000]
-    limits = [1000, 2000, 5000, 10000, 500000, 1000000, 2000000, 5000000, 10000000, 100000000]
-    #limits = [1000]
+    ccs = ['bbr', 'cubic'] # 2 values
+    delays = [0, 1, 5, 10, 25, 50, 75, 100, 150, 200] # 10 values
+    bws = [1, 10, 100, 1000, 10000] # 5 values
+    bursts = [1000000] # 1 value
+    limits = [1000, 2000, 5000, 10000, 500000, 1000000, 2000000, 5000000, 10000000, 100000000] # 10 values
 
-    csvname = "tbf-exp.csv"
+    '''
+    In total, we have 2*10*5*10 = 1000 combinations. Each exp takes 10s -> 10000s ~ 3hrs.
+    '''
+
+    d = datetime.datetime.now()
+
+    csvname = "tbf-exp-" + "{:%y%m%d_%H%M%S}".format(d) + ".csv"
     csvfile = open(csvname, 'a+')
     writer = csv.writer(csvfile)
-    writer.writerow(['CC', 'Delay', 'BW', 'Limit', 'Burst', 'Retr', 'BDP', 'Buffer', 'Loss(%)', 'Goodput(bps)'])
+    writer.writerow(['CC', ' Delay', ' BW', ' Limit', ' Burst', ' Retr', ' BDP', ' Buffer', ' Loss(%)', ' Goodput(bps)'])
+    csvfile.close()
+
+    logname = "tbf-exp-" + "{:%y%m%d_%H%M%S}".format(d) + ".log"
+    logfile = open(logname, 'a+')
+    logfile.close()
+
+    t = 10
+    to = 2
+    rtprop = 0.033
 
     for cc in ccs:
         print("Switching congestion control to: " + cc)
@@ -122,5 +151,13 @@ if __name__ == '__main__':
             for delay in delays:
                 for limit in limits:
                     for burst in bursts:
-                        iperfTest()
-    csvfile.close()
+                        p = multiprocessing.Process(target=iperfTest)
+                        start = time.time()
+                        p.start()
+                        p.join(t + to)
+                        end = time.time()
+                        print('Elaspe time: ' + str(end - start) + 's')
+
+                        if p.is_alive():
+                            print('Experiment failed...')
+                            p.terminate()
